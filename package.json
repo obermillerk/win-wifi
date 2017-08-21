@@ -1,0 +1,21 @@
+{
+  "name": "wifi",
+  "version": "0.0.1",
+  "description": "",
+  "main": "wifi.js",
+  "scripts": {
+    "test": "test"
+  },
+  "keywords": [
+    "wifi",
+    "windows",
+    "manager",
+    "netsh"
+  ],
+  "author": "obermillerk",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "dotenv": "4.0.0",
+    "handlebars": "4.0.10"
+  }
+}
