@@ -11,17 +11,17 @@
     // if security is defined, there is no guarantee that the resulting profile will be accurate
     // otherwise, it will scan for the given ssid and attempt to extract security information
     function connect(ssid, password, security, iface) {
-        var cmd = `netsh wlan connect ssid="${ssid}" name="${ssid}"`
-
-        if (iface) {
-            if(typeof iface === 'string') {
-                cmd += `interface="${iface}"`
-            } else {
-                throw new Error('Invalid interface');
-            }
-        }
-
         return new Promise((resolve, reject) => {
+            var cmd = `netsh wlan connect ssid="${ssid}" name="${ssid}"`;
+
+            if (iface) {
+                if(typeof iface === 'string') {
+                    cmd += `interface="${iface}"`;
+                } else {
+                    reject(new Error('Invalid interface'));
+                }
+            }
+
             //return isNetworkKnown(ssid, iface).then((known) => {
                 //if (known) { // If known, connect
                 if (false) {
@@ -41,23 +41,25 @@
                         return rememberNetwork(ssid, security, password, true, iface);
                     }
                 }
-            });
-        // });
+            // });
+        });
     }
 
     function disconnect(iface) {
-        var cmd = `netsh wlan disconnect`;
+        return new Promise((resolve, reject) => {
+            var cmd = `netsh wlan disconnect`;
 
-        if (iface) {
-            cmd += ` interface="${iface}"`;
-        }
+            if (iface) {
+                cmd += ` interface="${iface}"`;
+            }
 
-        try {
-            let out = execSync(cmd);
-            console.log(out);
-        } catch(err) {
-            console.error(err);
-        };
+            try {
+                let out = execSync(cmd);
+                console.log(out);
+            } catch(err) {
+                console.error(err);
+            }
+        });
     }
 
     function scan(iface) {
@@ -163,18 +165,20 @@
     }
 
     function forgetNetwork(ssid, iface) {
-        var cmd = `netsh wlan delete profile name="${ssid}"`
+        return new Promise((resolve, reject) => {
+            var cmd = `netsh wlan delete profile name="${ssid}"`
 
-        if (iface) {
-            cmd += ` interface="${iface}"`
-        }
+            if (iface) {
+                cmd += ` interface="${iface}"`
+            }
 
-        try {
-            execSync(cmd);
-            return true;
-        } catch(err) {
-            return false;
-        }
+            try {
+                execSync(cmd);
+                resolve();
+            } catch(err) {
+                reject(err);
+            }
+        });
     }
 
     // Usage: rememberNetwork(ssid, security, [password, [auto]], [iface])
