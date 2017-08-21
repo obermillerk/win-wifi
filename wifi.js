@@ -22,8 +22,9 @@
         }
 
         return new Promise((resolve, reject) => {
-            return isNetworkKnown(ssid, iface).then((known) => {
-                if (known) { // If known, connect
+            //return isNetworkKnown(ssid, iface).then((known) => {
+                //if (known) { // If known, connect
+                if (false) {
                     exec(cmd);
                 } else { // If not known, remember
                     if (!security) {
@@ -41,7 +42,7 @@
                     }
                 }
             });
-        });
+        // });
     }
 
     function disconnect(iface) {
@@ -51,12 +52,12 @@
             cmd += ` interface="${iface}"`;
         }
 
-        exec(cmd, (err, resp) => {
-            if (err) {
-                console.error(err);
-            }
-            console.log(resp);
-        });
+        try {
+            let out = execSync(cmd);
+            console.log(out);
+        } catch(err) {
+            console.error(err);
+        };
     }
 
     function scan(iface) {
@@ -67,13 +68,12 @@
             if(iface) {
                 cmd += ` interface="${iface}"`
             }
-            exec(cmd, (err, stdout) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                stdout = stdout.replace(/  +/g, ' ').replace(/(\r\n) | (: )/g, '$1$2');
-                let interfaces = stdout.split('Interface name : ');
+
+            try {
+                let out = execSync(cmd).toString();
+                
+                out = out.replace(/  +/g, ' ').replace(/(\r\n) | (: )/g, '$1$2');
+                let interfaces = out.split('Interface name : ');
                 interfaces.forEach((iface) => {
                     let networks = iface.split('\r\n\r\n');
                     iface = networks[0].match(/Interface name: (.*) \r\n/)[1];
@@ -112,8 +112,10 @@
                 });
                 console.log(results);
                 resolve(results);
-            });
-        })
+            } catch(err) {
+                reject(err);
+            }
+        });
     }
 
     function currentConnections(iface) {
@@ -167,11 +169,12 @@
             cmd += ` interface="${iface}"`
         }
 
-        exec(cmd, (err, resp) => {
-            if(err) {
-                consoel.error(err);
-            }
-        });
+        try {
+            execSync(cmd);
+            return true;
+        } catch(err) {
+            return false;
+        }
     }
 
     // Usage: rememberNetwork(ssid, security, [password, [auto]], [iface])
@@ -179,47 +182,43 @@
     // auto-connect mode only available for password secured networks to avoid unwanted connection to unsecured networks.
     function rememberNetwork(ssid, security, password, auto, iface) {
         return (new Promise((resolve, reject) => {
+            var hexssid = Buffer.from(ssid).toString('hex');
+            let mode = auto ? 'auto' : 'manual';
+
+            var profileContent;
+            switch(security) {
+                case 'WPA2PSK':
+                case 'WPAPSK':
+                case 'open':
+                    let template = Handlebars.compile(fs.readFileSync(`./wlan-profile-templates/${security}.xml`,'utf8'));
+                    profileContent = template({ssid: ssid, hexssid: hexssid, security: security, password: password, mode: mode})
+                    break;
+                default:
+                    throw new Error(`Invalid or unsupported authorization type: "${security}"`);
+            }
+
+            if (!fs.existsSync('tmp')) {
+                fs.mkdirSync('tmp');
+            }
+            let filepath = `./tmp/${ssid}.xml`;
+            if (fs.existsSync(filepath)) {
+                fs.unlinkSync(filepath);
+            }
+            fs.writeFileSync(filepath, profileContent);
+
+            var cmd = `netsh wlan add profile filename="${filepath}"`;
+
+            if (iface) {
+                cmd += ` interface="${iface}"`;
+            }
+
             try {
-                var hexssid = Buffer.from(ssid).toString('hex');
-                let mode = auto ? 'auto' : 'manual';
-
-                var profileContent;
-                switch(security) {
-                    case 'WPA2PSK':
-                    case 'WPAPSK':
-                    case 'open':
-                        let template = Handlebars.compile(fs.readFileSync(`./wlan-profile-templates/${security}.xml`,'utf8'));
-                        profileContent = template({ssid: ssid, hexssid: hexssid, security: security, password: password, mode: mode})
-                        break;
-                    default:
-                        throw new Error(`Invalid or unsupported authorization type: "${security}"`);
-                }
-
-                if (!fs.existsSync('tmp')) {
-                    fs.mkdirSync('tmp');
-                }
-                let filepath = `./tmp/${ssid}.xml`;
-                if (fs.existsSync(filepath)) {
-                    fs.unlinkSync(filepath);
-                }
-                fs.writeFileSync(filepath, profileContent);
-
-                var cmd = `netsh wlan add profile filename="${filepath}"`;
-
-                if (iface) {
-                    cmd += ` interface="${iface}"`;
-                }
-
-                exec(cmd, (err, resp) => {
-                    fs.unlinkSync(filepath);
-                    fs.rmdirSync('tmp');
-                    if(err) {
-                        console.error(err);
-                        reject(err);
-                    }
-                });
+                execSync(cmd);
             } catch(err) {
                 reject(err);
+            } finally {
+                fs.unlinkSync(filepath);
+                fs.rmdirSync('tmp');
             }
         }).catch((err) => {
             // Clean up if something goes wrong.
@@ -246,6 +245,6 @@
         scan: scan,
         rememberNetwork: rememberNetwork,
         forgetNetwork: forgetNetwork,
-        isNetworkKnown: isNetworkKnown
+        // isNetworkKnown: isNetworkKnown
     }
 })();
