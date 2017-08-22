@@ -22,9 +22,8 @@
                 }
             }
 
-            //return isNetworkKnown(ssid, iface).then((known) => {
-                //if (known) { // If known, connect
-                if (false) {
+            return isNetworkKnown(ssid, iface).then((known) => {
+                if (known) { // If known, connect
                     exec(cmd);
                 } else { // If not known, remember
                     if (!security) {
@@ -41,7 +40,7 @@
                         resolve(rememberNetwork(ssid, security, password, true, iface));
                     }
                 }
-            // });
+            });
         });
     }
 
@@ -87,14 +86,16 @@
                             .replace(/\bSSID \d+:/g, 'SSID:')
                             .replace(/\nAuthentication: WPA2-Personal/g,'\nAuthentication: WPA2PSK')
                             .replace(/\nAuthentication: WPA-PERSONAL/g, '\nAuthentication: WPAPSK');
-                        network = parseNetworkInfo(network.split('\r\n'));
-                        if (network !== null) {
-                            results[network.ssid] = network;
-                        }
+                        parseNetworkInfo(network.split('\r\n'))
+                            .then((network) => {
+                                if (network !== null) {
+                                    results[network.ssid] = network;
+                                }
+                            });
                     });
 
                     function parseNetworkInfo(lines) {
-                        // For now, just interface, ssid, and security.
+                        // For now, just interface, ssid, known, and security.
                         let network = {iface: iface};
                         lines.forEach((line) => {
                             let res;
@@ -105,6 +106,8 @@
                             }
                         });
 
+                        network.known = isNetworkKnown(network.ssid)
+                        
                         if (network && network.iface && network.ssid && network.security) {
                             return network;
                         } else {
@@ -124,35 +127,36 @@
     }
 
     function isNetworkKnown(ssid, iface) {
-        return new Promise((resolve, reject) => {
-            var cmd = `netsh wlan show profiles`;
-            if (iface) {
-                cmd += ` interface="${iface}"`;
-            }
-            try {
-                out = execSync(cmd).toString();
-                filterProfiles(out);
-            } catch(err) {
-                // ignore for now because of incorrect errors from node
-                resolve(false);
-            }
+        if (ssid === undefined || ssid === null) {
+            return false;
+        }
+        var cmd = `netsh wlan show profiles`;
+        if (iface) {
+            cmd += ` interface="${iface}"`;
+        }
+        try {
+            out = execSync(cmd).toString();
+            return filterProfiles(out);
+        } catch(err) {
+            // ignore for now because of incorrect errors from node
+            return false;
+        }
 
-            function filterProfiles(out) {
-                var profiles = out.split('User profiles\r\n')[1].split('\r\n');
-                    profiles.splice(0, 1);
-                    profiles.splice(-2, 2);
-                
-                if (profiles !== '    <None>') {
-                    for (let profile in profiles) {
-                        profile = profiles[profile].split(': ')[1];
-                        if (profile == ssid) {
-                            resolve(true);
-                        }
+        function filterProfiles(out) {
+            var profiles = out.split('User profiles\r\n')[1].split('\r\n');
+                profiles.splice(0, 1);
+                profiles.splice(-2, 2);
+            
+            if (profiles !== '    <None>') {
+                for (let profile in profiles) {
+                    profile = profiles[profile].split(': ')[1];
+                    if (profile == ssid) {
+                        return true;
                     }
                 }
-                resolve(false);
             }
-        })
+            return false;
+        }
     }
 
     function forgetNetwork(ssid, iface) {
@@ -240,6 +244,6 @@
         scan: scan,
         rememberNetwork: rememberNetwork,
         forgetNetwork: forgetNetwork,
-        // isNetworkKnown: isNetworkKnown
+        isNetworkKnown: isNetworkKnown
     }
 })();
