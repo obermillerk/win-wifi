@@ -84,12 +84,10 @@
                             .replace(/\bSSID \d+:/g, 'SSID:')
                             .replace(/\nAuthentication: WPA2-Personal/g,'\nAuthentication: WPA2PSK')
                             .replace(/\nAuthentication: WPA-PERSONAL/g, '\nAuthentication: WPAPSK');
-                        parseNetworkInfo(network.split('\r\n'))
-                            .then((network) => {
-                                if (network !== null) {
-                                    results[network.ssid] = network;
-                                }
-                            });
+                        network = parseNetworkInfo(network.split('\r\n'));
+                        if (network !== null) {
+                            results[network.ssid] = network;
+                        }
                     });
 
                     function parseNetworkInfo(lines) {
