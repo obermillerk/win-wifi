@@ -130,19 +130,11 @@
                 cmd += ` interface="${iface}"`;
             }
             try {
-                out = execSync(cmd)//,(err, out, stderr) => {
-                //     console.error(err);
-                //     if (err || out === 'There is no such wireless interface on the system.\r\n') {
-                //         reject(err);
-                //     } else {
-                //         filterProfiles(out)
-                //     }
-                // })
-                .toString();
+                out = execSync(cmd).toString();
                 filterProfiles(out);
             } catch(err) {
-                console.log('error!', err);
-                reject(err);
+                // ignore for now because of incorrect errors from node
+                resolve(false);
             }
 
             function filterProfiles(out) {
