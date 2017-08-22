@@ -22,25 +22,23 @@
                 }
             }
 
-            return isNetworkKnown(ssid, iface).then((known) => {
-                if (known) { // If known, connect
-                    exec(cmd);
-                } else { // If not known, remember
-                    if (!security) {
-                        scan(iface).then((results) => {
-                            let network = results[ssid];
-                            if (network) {
-                                // TODO: ask user for auto-connect mode
-                                resolve(rememberNetwork(ssid, network.security, password, true, iface));
-                            } else {
-                                reject(new Error('Network not found.'))
-                            }
-                        });
-                    } else {
-                        resolve(rememberNetwork(ssid, security, password, true, iface));
-                    }
+            if (isNetworkKnown(ssid, iface)) { // If known, connect
+                exec(cmd);
+            } else { // If not known, remember
+                if (!security) {
+                    scan(iface).then((results) => {
+                        let network = results[ssid];
+                        if (network) {
+                            // TODO: ask user for auto-connect mode
+                            resolve(rememberNetwork(ssid, network.security, password, true, iface));
+                        } else {
+                            reject(new Error('Network not found.'))
+                        }
+                    });
+                } else {
+                    resolve(rememberNetwork(ssid, security, password, true, iface));
                 }
-            });
+            }
         });
     }
 
