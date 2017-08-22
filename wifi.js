@@ -32,18 +32,20 @@
                 }
             }
 
-            if (isNetworkKnown(ssid, iface)) { // If known, connect
+            if (isNetworkKnown(ssid, {iface: iface})) { // If known, connect
                 exec(cmd);
             } else { // If not known, remember
                 if (!security) {
                     let network = scan(iface)[ssid];
                     if (network) {
-                        resolve(rememberNetwork(ssid, network.security, password, auto, iface));
+                        let opts = {security: network.security, password: password, auto:auto, iface:iface};
+                        resolve(rememberNetwork(ssid, opts));
                     } else {
                         reject(new Error('Network not found.'))
                     }
                 } else {
-                    resolve(rememberNetwork(ssid, security, password, auto, iface));
+                    let opts = {security: security, password: password, auto:auto, iface:iface};
+                    resolve(rememberNetwork(ssid, opts));
                 }
             }
         });
@@ -221,11 +223,6 @@
             return false;
         }
         var cmd = `netsh wlan show profiles`;
-
-        if (ssid && typeof ssid === 'object') {
-            opts = ssid;
-            ssid = undefined;
-        }
 
         let iface = opts.iface;
 
