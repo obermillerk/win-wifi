@@ -7,4 +7,11 @@ var ssid     = process.env.SSID,
     auto     = process.env.AUTO,
     iface    = process.env.IFACE
 
-wifi.disconnect(iface);
+let opts = {
+    password: password,
+    security: security,
+    auto: auto,
+    iface: iface
+}
+
+wifi.disconnect(opts);

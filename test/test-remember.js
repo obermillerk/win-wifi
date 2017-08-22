@@ -7,4 +7,11 @@ var ssid     = process.env.SSID,
     auto     = process.env.AUTO,
     iface    = process.env.IFACE
 
-wifi.rememberNetwork(ssid, security, password, auto, iface);
+let opts = {
+    password: password,
+    security: security,
+    auto: auto,
+    iface: iface
+}
+
+wifi.rememberNetwork(ssid, opts);

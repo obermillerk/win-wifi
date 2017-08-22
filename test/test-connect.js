@@ -7,4 +7,11 @@ var ssid     = process.env.SSID,
     auto     = process.env.AUTO,
     iface    = process.env.IFACE
 
-wifi.connect(ssid, auto, password, security, iface);
+let opts = {
+    password: password,
+    security: security,
+    auto: auto,
+    iface: iface
+}
+
+wifi.connect(ssid, opts);
