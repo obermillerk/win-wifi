@@ -4,15 +4,25 @@
     const fs = require('fs');
     const Handlebars = require('handlebars');
 
-    // Usage: connect(ssid, [password, [security, [iface]]]);
+    // Usage: connect(ssid, [auto, [password, [security, [iface]]]]);
+    // auto field is required to define password,
     // password field is required to define security,
     // security field is required to define iface
-    // for either, to pass an unknown/unneeded, null should be passed
+    // for any, to pass an unknown/unneeded, null should be passed
+    // auto defaults to true, but will not change a known network
     // if security is defined, there is no guarantee that the resulting profile will be accurate
     // otherwise, it will scan for the given ssid and attempt to extract security information
-    function connect(ssid, password, security, iface) {
+    function connect(ssid, auto, password, security, iface) {
         return new Promise((resolve, reject) => {
             var cmd = `netsh wlan connect ssid="${ssid}" name="${ssid}"`;
+
+            if (!ssid) {
+                reject(new Error('No SSID provided'));
+            }
+
+            if (auto === null || auto === undefined) {
+                auto = true;
+            }
 
             if (iface) {
                 if(typeof iface === 'string') {
@@ -29,14 +39,13 @@
                     scan(iface).then((results) => {
                         let network = results[ssid];
                         if (network) {
-                            // TODO: ask user for auto-connect mode
-                            resolve(rememberNetwork(ssid, network.security, password, true, iface));
+                            resolve(rememberNetwork(ssid, network.security, password, auto, iface));
                         } else {
                             reject(new Error('Network not found.'))
                         }
                     });
                 } else {
-                    resolve(rememberNetwork(ssid, security, password, true, iface));
+                    resolve(rememberNetwork(ssid, security, password, auto, iface));
                 }
             }
         });
@@ -60,66 +69,114 @@
     }
 
     function scan(iface) {
-        return new Promise((resolve, reject) => {
-            var results = {};
-            var cmd = `netsh wlan show networks mode=bssid`
+        var results = {};
+        var cmd = `netsh wlan show networks mode=bssid`
 
-            if(iface) {
-                cmd += ` interface="${iface}"`
-            }
+        if(iface) {
+            cmd += ` interface="${iface}"`
+        }
 
-            try {
-                let out = execSync(cmd).toString();
-                
-                out = out.replace(/  +/g, ' ').replace(/(\r\n) | (: )/g, '$1$2');
-                let interfaces = out.split('Interface name : ');
-                interfaces.forEach((iface) => {
-                    let networks = iface.split('\r\n\r\n');
-                    iface = networks[0].match(/Interface name: (.*) \r\n/)[1];
-                    networks.splice(0,1);
-                    networks.splice(-1, 1)
+        let connected = currentConnections(iface);
+        for (let i in connected) {
+            connected[i] = connected[i].state;
+        }
 
-                    networks.forEach((network) => {
-                        network = network
-                            .replace(/\bSSID \d+:/g, 'SSID:')
-                            .replace(/\nAuthentication: WPA2-Personal/g,'\nAuthentication: WPA2PSK')
-                            .replace(/\nAuthentication: WPA-PERSONAL/g, '\nAuthentication: WPAPSK');
-                        network = parseNetworkInfo(network.split('\r\n'));
-                        if (network !== null) {
-                            results[network.ssid] = network;
-                        }
-                    });
+        let out = execSync(cmd).toString();
+        
+        out = out.replace(/  +/g, ' ').replace(/(\r\n) | (: )/g, '$1$2');
+        let interfaces = out.split('Interface name : ');
+        interfaces.forEach((iface) => {
+            let networks = iface.split('\r\n\r\n');
+            iface = networks[0].match(/Interface name: (.*) \r\n/)[1];
+            networks.splice(0,1);
+            networks.splice(-1, 1)
 
-                    function parseNetworkInfo(lines) {
-                        // For now, just interface, ssid, known, and security.
-                        let network = {iface: iface};
-                        lines.forEach((line) => {
-                            let res;
-                            if (res = line.match(/SSID: (.*)/)) {
-                                network.ssid = res[1];
-                            } else if (res = line.match(/Authentication: (.*)/)) {
-                                network.security = res[1];
-                            }
-                        });
+            networks.forEach((network) => {
+                network = network
+                    .replace(/\bSSID \d+:/g, 'SSID:');
+                network = parseNetworkInfo(network.split('\r\n'));
+                if (network !== null) {
+                    results[network.ssid] = network;
+                }
+            });
 
-                        network.known = isNetworkKnown(network.ssid)
-                        
-                        if (network && network.iface && network.ssid && network.security) {
-                            return network;
-                        } else {
-                            return null;
-                        }
+            function parseNetworkInfo(lines) {
+                let network = {iface: iface};
+                lines.forEach((line) => {
+                    let res;
+                    if (res = line.match(/SSID: (.*)/)) {
+                        network.ssid = res[1];
+                    } else if (res = line.match(/Authentication: (.*)/)) {
+                        network.security = _rewriteSecurity(res[1]);
                     }
                 });
-                resolve(results);
-            } catch(err) {
-                reject(err);
+
+                network.known = isNetworkKnown(network.ssid);
+                network.state = connected[network.ssid] || 'disconnected';
+                
+                if (network && network.iface && network.ssid && network.security) {
+                    return network;
+                } else {
+                    return null;
+                }
             }
         });
+
+        return results;
+    }
+
+    function _rewriteSecurity(security) {
+        switch(security) {
+            case 'WPA2-Personal':
+                return 'WPA2PSK';
+            case 'WPA-Personal':
+                return 'WPAPSK';
+            default:
+                return security;
+        }
     }
 
     function currentConnections(iface) {
         var cmd = `netsh wlan show interfaces`
+
+        if (iface) {
+            cmd += ` interface="${iface}"`;
+        }
+        
+        let out = execSync(cmd).toString();
+
+        let ifaces = out.split('\r\n\r\n');
+        let connections = {};
+
+        ifaces.forEach((iface) => {
+            let connection = {};
+            var ifaceExp = /^    Name                   : ([^\r\n]*)\r\n/;
+            var ssidExp  = /\r\n    SSID                   : ([^\r\n]*)\r\n/;
+            var secExp   = /\r\n    Authentication         : ([^\r\n]*)\r\n/;
+            var stateExp = /\r\n    State                  : ([^\r\n]*)\r\n/;
+            let res;
+            if (res = iface.match(ifaceExp)) {
+                connection.iface    = res[1];
+            }
+            if (res = iface.match(ssidExp)) {
+                connection.ssid     = res[1];
+            }
+            if (res = iface.match(secExp)) {
+                connection.security = _rewriteSecurity(res[1]);
+            }
+            if (res = iface.match(stateExp)) {
+                connection.state = res[1];
+
+                if (connection.state === 'authenticating') {
+                    connection.state = 'connecting';
+                }
+            }
+
+            if (connection.state && (connection.state === 'connected' || connection.state ==='connecting')) {
+                connections[connection.ssid] = connection;
+            }
+        });
+        return connections;
     }
 
     function isNetworkKnown(ssid, iface) {
@@ -240,6 +297,7 @@
         scan: scan,
         rememberNetwork: rememberNetwork,
         forgetNetwork: forgetNetwork,
-        isNetworkKnown: isNetworkKnown
+        isNetworkKnown: isNetworkKnown,
+        currentConnections: currentConnections
     }
 })();

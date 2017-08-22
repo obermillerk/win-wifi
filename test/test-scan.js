@@ -7,4 +7,4 @@ var ssid     = process.env.SSID,
     auto     = process.env.AUTO,
     iface    = process.env.IFACE
 
-wifi.scan(iface);
+console.log(wifi.scan(iface));
