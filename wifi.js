@@ -32,13 +32,13 @@
                             let network = results[ssid];
                             if (network) {
                                 // TODO: ask user for auto-connect mode
-                                return rememberNetwork(ssid, network.security, password, true, iface);
+                                resolve(rememberNetwork(ssid, network.security, password, true, iface));
                             } else {
                                 reject(new Error('Network not found.'))
                             }
                         });
                     } else {
-                        return rememberNetwork(ssid, security, password, true, iface);
+                        resolve(rememberNetwork(ssid, security, password, true, iface));
                     }
                 }
             // });
@@ -55,9 +55,9 @@
 
             try {
                 let out = execSync(cmd);
-                console.log(out);
+                resolve(out)
             } catch(err) {
-                console.error(err);
+                reject(err);
             }
         });
     }
@@ -193,7 +193,7 @@
                 case 'WPA2PSK':
                 case 'WPAPSK':
                 case 'open':
-                    let template = Handlebars.compile(fs.readFileSync(`./wlan-profile-templates/${security}.xml`,'utf8'));
+                    let template = Handlebars.compile(fs.readFileSync(`${__dirname}/wlan-profile-templates/${security}.xml`,'utf8'));
                     profileContent = template({ssid: ssid, hexssid: hexssid, security: security, password: password, mode: mode})
                     break;
                 default:
