@@ -142,7 +142,7 @@
         if (iface) {
             cmd += ` interface="${iface}"`;
         }
-        
+
         let out = execSync(cmd).toString();
 
         let ifaces = out.split('\r\n\r\n');
@@ -233,6 +233,7 @@
     // password field required for WPAPSK and WPA2PSK security options
     // auto-connect mode only available for password secured networks to avoid unwanted connection to unsecured networks.
     function rememberNetwork(ssid, security, password, auto, iface) {
+        let tmpDir = `${__dirname}/tmp`
         return (new Promise((resolve, reject) => {
             var hexssid = Buffer.from(ssid).toString('hex');
             let mode = auto ? 'auto' : 'manual';
@@ -249,10 +250,10 @@
                     throw new Error(`Invalid or unsupported authorization type: "${security}"`);
             }
 
-            if (!fs.existsSync('tmp')) {
-                fs.mkdirSync('tmp');
+            if (!fs.existsSync(tmpDir)) {
+                fs.mkdirSync(tmpDir);
             }
-            let filepath = `./tmp/${ssid}.xml`;
+            let filepath = `${tmpDir}/${ssid}.xml`;
             if (fs.existsSync(filepath)) {
                 fs.unlinkSync(filepath);
             }
@@ -270,17 +271,17 @@
                 reject(err);
             } finally {
                 fs.unlinkSync(filepath);
-                fs.rmdirSync('tmp');
+                fs.rmdirSync(tmpDir);
             }
         }).catch((err) => {
             // Clean up if something goes wrong.
             // Don't want a file with the password sitting around.
-            let filepath = `./tmp/${ssid}.xml`;
+            let filepath = `${tmpDir}/${ssid}.xml`;
             if (fs.existsSync(filepath)) {
                 fs.unlinkSync(filepath);
             }
-            if (fs.existsSync('tmp')) {
-                fs.rmdirSync('tmp');
+            if (fs.existsSync(tmpDir)) {
+                fs.rmdirSync(tmpDir);
             }
             // Propogate error
             return Promise.reject(err);
