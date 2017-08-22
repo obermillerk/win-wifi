@@ -112,7 +112,6 @@
                         }
                     }
                 });
-                console.log(results);
                 resolve(results);
             } catch(err) {
                 reject(err);
