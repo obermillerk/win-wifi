@@ -39,18 +39,18 @@
             if (isNetworkKnown(ssid, {iface: iface})) { // If known, connect
                 exec(cmd);
             } else { // If not known, remember
+                let opts = {password: password, auto: auto, iface: iface};
                 if (!security) {
                     let network = scan(iface)[ssid];
                     if (network) {
-                        let opts = {security: network.security, password: password, auto:auto, iface:iface};
-                        resolve(rememberNetwork(ssid, opts));
+                        opts.security = network.security;
                     } else {
-                        reject(new Error('Network not found.'))
+                        reject(new Error('Network not found.'));
                     }
                 } else {
-                    let opts = {security: security, password: password, auto:auto, iface:iface};
-                    resolve(rememberNetwork(ssid, opts));
+                    opts.security = security;
                 }
+                resolve(rememberNetwork(ssid, opts));
             }
         });
     }
@@ -144,8 +144,8 @@
                         }
                     });
 
-                    network.known = isNetworkKnown(network.ssid);
                     network.state = connected[network.ssid] || 'disconnected';
+                    network.known = isNetworkKnown(network.ssid);
 
                     if (network && network.iface && network.ssid && network.security) {
                         return network;
@@ -170,15 +170,10 @@
         }
     }
 
-    // Usage: currentConnections([[ssid,] opts])
+    // Usage: currentConnections([opts])
     // valid options: iface
-    function currentConnections(ssid, opts) {
+    function currentConnections(opts) {
         var cmd = `netsh wlan show interfaces`
-
-        if (ssid && typeof ssid === 'object') {
-            opts = ssid;
-            ssid = undefined;
-        }
 
         if (!opts) {
             opts = {};
