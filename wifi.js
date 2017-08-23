@@ -19,6 +19,10 @@
                 reject(new Error('No SSID provided'));
             }
 
+            if (!opts) {
+                opts = {};
+            }
+
             let auto        = opts.auto || true;
             let password    = opts.password;
             let security    = opts.security;
@@ -62,6 +66,10 @@
                 ssid = undefined;
             }
 
+            if (!opts) {
+                opts = {};
+            }
+
             let iface = opts.iface;
 
             if (iface) {
@@ -88,6 +96,10 @@
             ssid = undefined;
         }
 
+        if (!opts) {
+            opts = {};
+        }
+
         let iface = opts.iface;
 
         if(iface) {
@@ -100,7 +112,7 @@
         }
 
         let out = execSync(cmd).toString();
-        
+
         out = out.replace(/  +/g, ' ').replace(/(\r\n) | (: )/g, '$1$2');
         let interfaces = out.split('Interface name : ');
         interfaces.forEach((iface) => {
@@ -134,7 +146,7 @@
 
                     network.known = isNetworkKnown(network.ssid);
                     network.state = connected[network.ssid] || 'disconnected';
-                    
+
                     if (network && network.iface && network.ssid && network.security) {
                         return network;
                     } else {
@@ -166,6 +178,10 @@
         if (ssid && typeof ssid === 'object') {
             opts = ssid;
             ssid = undefined;
+        }
+
+        if (!opts) {
+            opts = {};
         }
 
         let iface = opts.iface;
@@ -216,13 +232,17 @@
         return connections;
     }
 
-    // Usage: isNetworkKnown([[ssid,] opts])
+    // Usage: isNetworkKnown([ssid, [opts]])
     // valid options: iface
     function isNetworkKnown(ssid, opts) {
         if (ssid === undefined || ssid === null) {
             return false;
         }
         var cmd = `netsh wlan show profiles`;
+
+        if (!opts) {
+            opts = {};
+        }
 
         let iface = opts.iface;
 
@@ -241,7 +261,7 @@
             var profiles = out.split('User profiles\r\n')[1].split('\r\n');
                 profiles.splice(0, 1);
                 profiles.splice(-2, 2);
-            
+
             if (profiles !== '    <None>') {
                 for (let profile in profiles) {
                     profile = profiles[profile].split(': ')[1];
@@ -263,6 +283,10 @@
             if (ssid && typeof ssid === 'object') {
                 opts = ssid;
                 ssid = undefined;
+            }
+
+            if (!opts) {
+                opts = {};
             }
 
             let iface = opts.iface;
@@ -287,6 +311,11 @@
     function rememberNetwork(ssid, opts) {
         let tmpDir = `${__dirname}/tmp`
         return (new Promise((resolve, reject) => {
+
+            if (!opts) {
+                opts = {};
+            }
+
             let auto        = opts.auto || true;
             let password    = opts.password;
             let security    = opts.security;
