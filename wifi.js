@@ -1,8 +1,40 @@
 (function() {
-    const exec = require('child_process').exec;
-    const execSync = require('child_process').execSync;
-    const fs = require('fs');
-    const Handlebars = require('handlebars');
+    const wifi = require('./windows.devices.wifi');
+    const PasswordCredential = require('./windows.security.credentials').PasswordCredential;
+    const WiFiReconnectionKind = wifi.WiFiReconnectionKind;
+    const WiFiConnectionStatus = wifi.WiFiConnectionStatus;
+    const WiFiAdapter = wifi.WiFiAdapter;
+
+    WiFiAdapter.findAllAdaptersAsync(afterAdapters);
+
+    function afterAdapters(err, adapters) {
+        let adapter = adapters.getAt(0);
+        let availableNetworks = adapter.networkReport.availableNetworks;
+        for (let i = 0; i < availableNetworks.size; i++) {
+            let network = availableNetworks.getAt(i);
+            if (network.ssid === 'iBiosensics') {
+                let passCred = new PasswordCredential('wifi', 'asdf', 'JEh2tF48fb5C')
+                adapter.connectAsync(network, WiFiReconnectionKind.automatic, afterConnect);
+            }
+        }
+    }
+
+    function afterConnect(err, results) {
+        if(err) {
+            console.error(err);
+        }
+        console.log(results.connectionStatus);
+    }
+
+    //  CONNECTION STATUSES-------------------
+    //  unspecifiedFailure: 0,
+    //  success: 1,
+    //  accessRevoked: 2,
+    //  invalidCredential: 3,
+    //  networkNotAvailable: 4,
+    //  timeout: 5,
+    //  unsupportedAuthenticationProtocol: 6
+    //  --------------------------------------
 
     /**
      * Usage: connect(ssid, [opts])
