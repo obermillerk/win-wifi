@@ -14,4 +14,6 @@ let opts = {
     iface: iface
 }
 
+wifi();
+
 wifi.disconnect(opts);

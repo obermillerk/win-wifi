@@ -15,6 +15,7 @@
   "author": "obermillerk",
   "license": "Apache-2.0",
   "dependencies": {
+    "deasync": "^0.1.10",
     "dotenv": "4.0.0",
     "handlebars": "4.0.10"
   }
