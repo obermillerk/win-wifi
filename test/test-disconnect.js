@@ -1,5 +1,5 @@
 require('dotenv').config();
-let wifi = require('../wifi');
+let wifi = new (require('../wifi'))();
 
 var ssid     = process.env.SSID,
     password = process.env.PASS,
@@ -13,7 +13,5 @@ let opts = {
     auto: auto,
     iface: iface
 }
-
-wifi();
 
 wifi.disconnect(opts);

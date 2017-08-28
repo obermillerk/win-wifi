@@ -1,9 +1,11 @@
 (function() {
-    const WiFi = require('windows.devices.wifi');
-    const PasswordCredential = require('windows.security.credentials').PasswordCredential;
-    const devEnum = require('windows.devices.enumeration');
+    const WiFi = require('./windows.devices.wifi');
+    const PasswordCredential = require('./windows.security.credentials').PasswordCredential;
+    const devEnum = require('./windows.devices.enumeration');
+    const Connectivity = require('./windows.networking.connectivity');
     const deasync = require('deasync');
     const devInfo = devEnum.DeviceInformation;
+    const EventEmitter = require('events').EventEmitter;
     const WiFiReconnectionKind = WiFi.WiFiReconnectionKind;
     const WiFiConnectionStatus = WiFi.WiFiConnectionStatus;
     const WiFiAdapter = WiFi.WiFiAdapter;
@@ -12,51 +14,58 @@
 
     // Rough approximation of percentage quality based on quadratics and assuming a range of -100 dBm to -40 dBm (weak to strong).
     function _rssiToPercent(rssi) {
-        if(rssi > -40) {
-            return 100;
-        }
-        rssi += 40;
-        return Math.max(Math.min(100 - Math.floor(rssi*rssi / 36), 100), 1);
+        // if(rssi > -40) {
+        //     return 100;
+        // }
+        // rssi += 40;
+        return Math.max(Math.min(100 - Math.floor(rssi*rssi / 100), 100), 1);
     }
 
 
-    function wifi(adapt) {
-        // If an adapter is provided, try to use that.
-        if (adapt) {
-            if (adapt instanceof devInfo) {
-                if (adapt.isEnabled) {
-                    adapter = deasync(WiFiAdapter.fromIdAsync)(adapt.id);
+    class wifi extends EventEmitter {
+        constructor (adapt) {
+            super();
+
+            if (adapt) {
+                // If an adapter is provided, try to use that.
+                if (adapt instanceof devInfo) {
+                    if (adapt.isEnabled) {
+                        adapter = deasync(WiFiAdapter.fromIdAsync)(adapt.id);
+                    } else {
+                        throw new Error('Provided adapter is disabled.');
+                    }
                 } else {
-                    throw new Error('Provided adapter is disabled.');
+                    throw new Error('Invalid adapter provided. Use wifi.listAdapters() to retrieve a list of valid adapters.');
                 }
-                return;
             } else {
-                throw new Error('Invalid adapter provided. Use wifi.listAdapters() to retrieve a list of valid adapters.');
-            }
-        }
-
-        // Otherwise, find the best adapter available.
-        // Looks for a default and if there is none takes the first enabled adapter.
-        let adapters = listAdapters();
-        
-        var best;
-        for(adapt in adapters) {
-            adapt = adapters[adapt];
-
-            if (adapt.isEnabled) {
-                let wifiadapt = deasync(WiFiAdapter.fromIdAsync)(adapt.id);
-                if (adapt.isDefault) {
-                    adapter = wifiadapt;
-                } else if (!best) {
-                    best = wifiadapt;
+                // Otherwise, find the best adapter available.
+                // Looks for a default and if there is none takes the first enabled adapter.
+                let adapters = listAdapters();
+                
+                var best;
+                for(adapt in adapters) {
+                    adapt = adapters[adapt];
+    
+                    if (adapt.isEnabled) {
+                        let wifiadapt = deasync(WiFiAdapter.fromIdAsync)(adapt.id);
+                        if (adapt.isDefault) {
+                            adapter = wifiadapt;
+                        } else if (!best) {
+                            best = wifiadapt;
+                        }
+                    }
+                }
+    
+                if (!best) {
+                    throw new Error('No enabled wifi adapters!');
+                } else {
+                    adapter = best;
                 }
             }
-        }
 
-        if (!best) {
-            throw new Error('No enabled wifi adapters!');
-        } else {
-            adapter = best;
+            adapter.on('availableNetworksChanged', () => {
+                this.emit('availableNetworksChanged', scan());
+            });
         }
     }
 
@@ -101,22 +110,21 @@
      * auto defaults to true, but will not change a known network. To change a known network, use remember instead.
      * if security is defined, there is no guarantee that the resulting profile will be accurate
      * otherwise, it will scan for the given ssid and attempt to extract security information
-     * valid options: auto, password, security, iface
+     * valid options: auto, password
      */
 
-    wifi.connect = connect = function (ssid, opts) {
+    wifi.prototype.connect = connect = function (ssid, opts) {
         if (!opts) {
             opts = {};
         }
+
+        let self = this;
 
         let auto = opts.auto || true;
         let password = opts.password;
         let username = opts.username;
 
         return new Promise((resolve, reject) => {
-            if (!adapter) {
-                reject(new Error('Not initialized. Use wifi() or wifi(adapter) to initialize.'));
-            }
             let networks = adapter.networkReport.availableNetworks.first();
             let network;
             while(networks.hasCurrent) {
@@ -137,7 +145,7 @@
                     if (password && typeof password === 'string' && password.length > 0) {
                         passcred.password = password;
                     }
-                    if (username && typeof username === 'string' && username.lenght > 0) {
+                    if (username && typeof username === 'string' && username.length > 0) {
                         passcred.userName = username;
                     }
                     adapter.connectAsync(network, reconnectKind, passcred, handleConnectionStatus);
@@ -150,6 +158,9 @@
                     if (err) {
                         reject(err);
                     } else {
+                        if (status === WiFiConnectionStatus.success) {
+                            self.emit('networkConnected');
+                        }
                         resolve(status);
                     }
                 }
@@ -160,153 +171,140 @@
     }
 
     // Usage: wifi.disconnect()
-    wifi.disconnect = disconnect = function() {
-        if (!adapter) {
-            throw new Error('Not initialized. Use wifi() or wifi(adapter) to initialize.')
-        }
-
+    wifi.prototype.disconnect = disconnect = function() {
         adapter.disconnect();
     }
 
-    // Usage: scan([[ssid,] opts])
-    // valid options: iface
-    function scan(ssid, opts) {
-        var results = {};
-        var cmd = `netsh wlan show networks mode=bssid`
+    // Usage: scan([ssid])
+    // ssid is anticipated as a regular expression.  Will not match exactly unless the regex specifies such.
+    wifi.prototype.scan = scan = function(ssid) {
+        let connections = currentConnections();
 
-        if (ssid && typeof ssid === 'object') {
-            opts = ssid;
-            ssid = undefined;
+        let networks = adapter.networkReport.availableNetworks.first();
+        let results = {};
+        while(networks.hasCurrent) {
+            let net = networks.current;
+            networks.moveNext();
+
+            let network = {};
+            network.ssid = net.ssid;
+            network.signal = _rssiToPercent(net.networkRssiInDecibelMilliwatts)/100;
+            network.connected = connections.indexOf(net.ssid) >= 0;
+            network.security = _rewriteSecurity(net.securitySettings);
+
+            // Check if the ssid matches the given regex.
+            if ((!ssid || net.ssid.match(ssid)) &&
+                (!results[net.ssid] || network.signal > results[net.ssid].signal)) {
+                // If this is a new SSID, add it to the results.
+                // If this isn't new but is stronger, overwrtie the last result.
+                results[net.ssid] = network;
+            }
         }
 
-        if (!opts) {
-            opts = {};
-        }
+        return results;
 
-        let iface = opts.iface;
+        /*
+        if (true) {
+            var results = {};
+            var cmd = `netsh wlan show networks mode=bssid`
 
-        if(iface) {
-            cmd += ` interface="${iface}"`
-        }
+            if (ssid && typeof ssid === 'object') {
+                opts = ssid;
+                ssid = undefined;
+            }
 
-        let connected = currentConnections(iface);
-        for (let i in connected) {
-            connected[i] = connected[i].state;
-        }
+            if (!opts) {
+                opts = {};
+            }
 
-        let out = execSync(cmd).toString();
+            let iface = opts.iface;
 
-        out = out.replace(/  +/g, ' ').replace(/(\r\n) | (: )/g, '$1$2');
-        let interfaces = out.split('Interface name : ');
-        interfaces.forEach((iface) => {
-            let networks = iface.split('\r\n\r\n');
-            if (res = networks[0].match(/Interface name: (.*) \r\n/)) {
-                iface = res[1];
-                networks.splice(0,1);
-                networks.splice(-1, 1)
+            if(iface) {
+                cmd += ` interface="${iface}"`
+            }
 
-                networks.forEach((network) => {
-                    network = network
-                        .replace(/\bSSID \d+:/g, 'SSID:');
-                    network = parseNetworkInfo(network.split('\r\n'));
-                    if (network !== null) {
-                        results[network.ssid] = network;
-                    }
-                });
+            let connected = currentConnections(iface);
+            for (let i in connected) {
+                connected[i] = connected[i].state;
+            }
 
-                function parseNetworkInfo(lines) {
-                    let network = {iface: iface};
-                    lines.forEach((line) => {
-                        let res;
-                        if (res = line.match(/SSID: (.*)/)) {
-                            network.ssid = res[1];
-                        } else if (res = line.match(/Authentication: (.*)/)) {
-                            network.security = _rewriteSecurity(res[1]);
-                        } else if (res = line.match(/Signal: (\d*)%/)) {
-                            network.signal = res[1]/100;
+            let out = execSync(cmd).toString();
+
+            out = out.replace(/  +/g, ' ').replace(/(\r\n) | (: )/g, '$1$2');
+            let interfaces = out.split('Interface name : ');
+            interfaces.forEach((iface) => {
+                let networks = iface.split('\r\n\r\n');
+                if (res = networks[0].match(/Interface name: (.*) \r\n/)) {
+                    iface = res[1];
+                    networks.splice(0,1);
+                    networks.splice(-1, 1)
+
+                    networks.forEach((network) => {
+                        network = network
+                            .replace(/\bSSID \d+:/g, 'SSID:');
+                        network = parseNetworkInfo(network.split('\r\n'));
+                        if (network !== null) {
+                            results[network.ssid] = network;
                         }
                     });
 
-                    network.state = connected[network.ssid] || 'disconnected';
-                    network.known = isNetworkKnown(network.ssid);
+                    function parseNetworkInfo(lines) {
+                        let network = {iface: iface};
+                        lines.forEach((line) => {
+                            let res;
+                            if (res = line.match(/SSID: (.*)/)) {
+                                network.ssid = res[1];
+                            } else if (res = line.match(/Authentication: (.*)/)) {
+                                network.security = _rewriteSecurity(res[1]);
+                            } else if (res = line.match(/Signal: (\d*)%/)) {
+                                network.signal = res[1]/100;
+                            }
+                        });
 
-                    if (network && network.iface && network.ssid && network.security) {
-                        return network;
-                    } else {
-                        return null;
+                        network.state = connected[network.ssid] || 'disconnected';
+                        network.known = isNetworkKnown(network.ssid);
+
+                        if (network && network.iface && network.ssid && network.security) {
+                            return network;
+                        } else {
+                            return null;
+                        }
                     }
                 }
-            }
-        });
+            });
 
-        return results;
+            return results;
+        }*/
     }
 
     function _rewriteSecurity(security) {
-        switch(security) {
-            case 'WPA2-Personal':
-                return 'WPA2PSK';
-            case 'WPA-Personal':
-                return 'WPAPSK';
-            default:
-                return security;
+        if (!security instanceof Connectivity.NetworkSecuritySettings) {
+            throw new Error("Invalid NetworkSecuritySettings object provided.");
         }
+        const eTypes = Connectivity.NetworkEncryptionType;
+        const aTypes = Connectivity.NetworkAuthenticationType;
+
+        let authType = security.NetworkAuthenticationType;
+        let encryptType = security.NetworkEncryptionType;
     }
 
-    // Usage: currentConnections([opts])
-    // valid options: iface
-    function currentConnections(opts) {
-        var cmd = `netsh wlan show interfaces`
+    // Usage: currentConnections()
+    wifi.currentConnections = currentConnections = function() {
+        let filter = new Connectivity.ConnectionProfileFilter();
+        filter.isConnected = true;
+        filter.isWlanConnectionProfile = true;
 
-        if (!opts) {
-            opts = {};
+        let netInfo = deasync(Connectivity.NetworkInformation.findConnectionProfilesAsync)(filter);
+
+        let connections = [];
+
+        netInfo = netInfo.first();
+        while(netInfo.hasCurrent) {
+            let conn = netInfo.current;
+            netInfo.moveNext();
+            
+            connections.push(conn.wlanConnectionProfileDetails.getConnectedSsid());
         }
-
-        let iface = opts.iface;
-
-        if (iface) {
-            cmd += ` interface="${iface}"`;
-        }
-
-        let out = execSync(cmd).toString();
-
-        out = out.replace(/  +/g, ' ').replace(/(\r\n) | (: )/g, '$1$2');
-
-        let ifaces = out.split('\r\n\r\n');
-        let connections = {};
-
-        ifaces.forEach((iface) => {
-            let connection = {};
-            var ifaceExp = /^Name: ([^\r\n]*)\r\n/;
-            var ssidExp  = /\r\nSSID: ([^\r\n]*)\r\n/;
-            var secExp   = /\r\nAuthentication: ([^\r\n]*)\r\n/;
-            var stateExp = /\r\nState: ([^\r\n]*)\r\n/;
-            var sigExp   = /\r\nSignal: (\d*)% \r\n/;
-            let res;
-            if (res = iface.match(ifaceExp)) {
-                connection.iface    = res[1];
-            }
-            if (res = iface.match(ssidExp)) {
-                connection.ssid     = res[1];
-            }
-            if (res = iface.match(secExp)) {
-                connection.security = _rewriteSecurity(res[1]);
-            }
-            if (res = iface.match(sigExp)) {
-                connection.signal = res[1]/100
-            }
-            if (res = iface.match(stateExp)) {
-                connection.state = res[1];
-
-                if (connection.state === 'authenticating') {
-                    connection.state = 'connecting';
-                }
-            }
-
-            if (connection.state && (connection.state === 'connected' || connection.state ==='connecting')) {
-                connections[connection.ssid] = connection;
-            }
-        });
         return connections;
     }
 

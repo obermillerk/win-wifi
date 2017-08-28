@@ -1,5 +1,5 @@
 require('dotenv').config();
-let wifi = require('../wifi');
+let wifi = new (require('../wifi'))();
 
 var ssid     = process.env.SSID,
     password = process.env.PASS,
@@ -14,6 +14,14 @@ let opts = {
     iface: iface
 }
 
-wifi();
+wifi.on('availableNetworksChanged', (networks) => {
+    console.log("Networks changed!", networks);
+});
+wifi.on('networkConnected', () => {
+    console.log('Connected!');
+});
 
-wifi.connect(ssid, opts);
+wifi.connect(ssid, opts).then(
+    (resp) => console.log(resp),
+    (err) => console.log(err)
+);

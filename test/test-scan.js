@@ -1,5 +1,5 @@
 require('dotenv').config();
-let wifi = require('../wifi');
+let wifi = new (require('../wifi'))();
 
 var ssid     = process.env.SSID,
     password = process.env.PASS,
@@ -14,4 +14,4 @@ let opts = {
     iface: iface
 }
 
-console.log(wifi.scan(opts));
+console.log(wifi.scan());
