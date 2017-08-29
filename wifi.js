@@ -1,8 +1,8 @@
 (function() {
-    const WiFi = require(`${__dirname}/windows_modules/windows.devices.wifi`);
-    const PasswordCredential = require(`${__dirname}/windows_modules/windows.security.credentials`).PasswordCredential;
-    const devEnum = require(`${__dirname}/windows_modules/windows.devices.enumeration`);
-    const Connectivity = require(`${__dirname}/windows_modules/windows.networking.connectivity`);
+    const WiFi = require(`windows.devices.wifi`);
+    const PasswordCredential = require(`windows.security.credentials`).PasswordCredential;
+    const devEnum = require(`windows.devices.enumeration`);
+    const Connectivity = require(`windows.networking.connectivity`);
     const deasync = require('deasync');
     const devInfo = devEnum.DeviceInformation;
     const EventEmitter = require('events').EventEmitter;
