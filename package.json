@@ -17,6 +17,10 @@
   "dependencies": {
     "deasync": "0.1.10",
     "dotenv": "4.0.0",
-    "handlebars": "4.0.10"
+    "handlebars": "4.0.10",
+    "windows.devices.enumeration": "file:./windows_modules/windows.devices.enumeration",
+    "windows.devices.wifi": "file:./windows_modules/windows.devices.wifi",
+    "windows.networking.connectivity": "file:./windows_modules/windows.networking.connectivity",
+    "windows.security.credentials": "file:./windows_modules/windows.security.credentials"
   }
 }

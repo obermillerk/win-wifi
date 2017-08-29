@@ -88,13 +88,6 @@
         return list;
     }
 
-    function afterConnect(err, results) {
-        if(err) {
-            console.error(err);
-        }
-        console.log(results.connectionStatus);
-    }
-
     //  CONNECTION STATUSES-------------------
     //  unspecifiedFailure: 0,
     //  success: 1,
