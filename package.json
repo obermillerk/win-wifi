@@ -18,9 +18,9 @@
     "deasync": "0.1.10",
     "dotenv": "4.0.0",
     "handlebars": "4.0.10",
-    "windows.devices.enumeration": "git:obermillerk/windows.devices.enumeration",
-    "windows.devices.wifi": "git:obermillerk/windows.devices.wifi",
-    "windows.networking.connectivity": "git:obermillerk/windows.networking.connectivity",
-    "windows.security.credentials": "git:obermillerk/windows.security.credentials"
+    "windows.devices.enumeration": "github:obermillerk/windows.devices.enumeration",
+    "windows.devices.wifi": "github:obermillerk/windows.devices.wifi",
+    "windows.networking.connectivity": "github:obermillerk/windows.networking.connectivity",
+    "windows.security.credentials": "github:obermillerk/windows.security.credentials"
   }
 }
