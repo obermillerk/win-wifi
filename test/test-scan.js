@@ -14,4 +14,8 @@ let opts = {
     iface: iface
 }
 
-console.log(wifi.scan());
+wifi.on('availableNetworksChanged', (networks) => {
+    console.log(networks);
+});
+
+wifi.scan();

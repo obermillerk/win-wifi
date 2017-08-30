@@ -64,7 +64,7 @@
             }
 
             adapter.on('availableNetworksChanged', () => {
-                this.emit('availableNetworksChanged', scan());
+                this.emit('availableNetworksChanged', availableNetworks());
             });
         }
     }
@@ -170,7 +170,7 @@
 
     // Usage: scan([ssid])
     // ssid is anticipated as a regular expression.  Will not match exactly unless the regex specifies such.
-    wifi.prototype.scan = scan = function(ssid) {
+    wifi.prototype.availableNetworks = availableNetworks = function(ssid) {
         let connections = currentConnections();
 
         let networks = adapter.networkReport.availableNetworks.first();
@@ -268,6 +268,10 @@
 
             return results;
         }*/
+    }
+
+    wifi.prototype.scan = scan = function() {
+        adapter.scanAsync(() => {});
     }
 
     function _rewriteSecurity(security) {
