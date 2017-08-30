@@ -5,7 +5,7 @@
   "main": "wifi.js",
   "scripts": {
     "test": "test",
-    "install": "npm explore deasync -- node-gyp rebuild"
+    "postinstall": "npm explore deasync -- node-gyp rebuild"
   },
   "keywords": [
     "wifi",
