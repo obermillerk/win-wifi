@@ -5,7 +5,7 @@
   "main": "wifi.js",
   "scripts": {
     "test": "test",
-    "postinstall": "npm explore deasync -- node-gyp rebuild & npm install deasync@0.1.10 && npm explore deasync -- node-gyp rebuild"
+    "postinstall": "npm install deasync@0.1.10 && npm explore deasync -- node-gyp rebuild"
   },
   "keywords": [
     "wifi",
@@ -16,7 +16,6 @@
   "author": "obermillerk",
   "license": "Apache-2.0",
   "dependencies": {
-    "deasync": "0.1.10",
     "dotenv": "4.0.0",
     "handlebars": "4.0.10",
     "windows.devices.enumeration": "github:obermillerk/windows.devices.enumeration",
