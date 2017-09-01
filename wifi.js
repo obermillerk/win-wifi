@@ -14,17 +14,21 @@
 
     // Rough approximation of percentage quality based on quadratics and assuming a range of -100 dBm to -40 dBm (weak to strong).
     function _rssiToPercent(rssi) {
-        // if(rssi > -40) {
-        //     return 100;
-        // }
-        // rssi += 40;
-        return Math.max(Math.min(100 - Math.floor(rssi*rssi / 100), 100), 1);
+        if(rssi > -50) {
+            return 100;
+        }
+        rssi += 50;
+        return Math.max(Math.min(100 - Math.floor(100 * Math.abs(rssi)/50), 100), 1);
     }
 
 
     class wifi extends EventEmitter {
         constructor (adapt) {
             super();
+
+            if (deasync(WiFiAdapter.requestAccessAsync)() !== WiFi.WiFiAccessStatus.allowed) {
+                throw new Error('Current user does not have access to wifi adapters.');
+            }
 
             if (adapt) {
                 // If an adapter is provided, try to use that.
@@ -115,7 +119,6 @@
 
         let auto = opts.auto || true;
         let password = opts.password;
-        let username = opts.username;
 
         return new Promise((resolve, reject) => {
             let networks = adapter.networkReport.availableNetworks.first();
@@ -138,9 +141,6 @@
                     if (password && typeof password === 'string' && password.length > 0) {
                         passcred.password = password;
                     }
-                    if (username && typeof username === 'string' && username.length > 0) {
-                        passcred.userName = username;
-                    }
                     adapter.connectAsync(network, reconnectKind, passcred, handleConnectionStatus);
                 } else {
                     adapter.connectAsync(network, reconnectKind, handleConnectionStatus);
@@ -152,7 +152,7 @@
                         reject(err);
                     } else {
                         if (status === WiFiConnectionStatus.success) {
-                            self.emit('networkConnected');
+                            self.emit('networkConnected', ssid);
                         }
                         resolve(status);
                     }
@@ -208,8 +208,41 @@
         const eTypes = Connectivity.NetworkEncryptionType;
         const aTypes = Connectivity.NetworkAuthenticationType;
 
-        let authType = security.NetworkAuthenticationType;
-        let encryptType = security.NetworkEncryptionType;
+        let authType = security.networkAuthenticationType;
+        let encryptType = security.networkEncryptionType;
+        
+        switch(authType) {
+            // Secure types
+            case aTypes.Wpa:
+                return 'WPA-Enterprise';
+            case aTypes.WpaPsk:
+                return 'WPA-Personal';
+            case aTypes.WpaNone:
+                return 'WPA-None';
+            case aTypes.rsna:
+                return 'WPA2-Enterprise';
+            case aTypes.rsnaPsk:
+                return 'WPA2-Personal';
+            
+            // Not recommended
+            case aTypes.sharedKey80211:
+                return 'WEP Shared';
+            
+            // Unknown types            
+            case aTypes.unknown:
+                return 'Unknown'
+            case aTypes.ihv:
+                return 'IHV';
+        
+            // Unsecure types
+            case aTypes.open80211:
+                return 'Open'
+            case aTypes.none:
+                return 'None';
+            
+            default:
+                throw new Error(`Invalid auth type "${authType}"`);
+        }
     }
 
     // Usage: currentConnections()
@@ -232,58 +265,33 @@
         return connections;
     }
 
-    // Usage: isNetworkKnown([ssid, [opts]])
-    // valid options: iface
-    function isNetworkKnown(ssid, opts) {
-        if (ssid === undefined || ssid === null) {
-            return false;
-        }
-        var cmd = `netsh wlan show profiles`;
+    // Incomplete
+    knownNetworks = function() {
+        let filter = new Connectivity.ConnectionProfileFilter();
+        filter.isWlanConnectionProfile = true;
+        let profiles = deasync(Connectivity.NetworkInformation.findConnectionProfilesAsync)(filter);
+        
+        let known = [];
 
-        if (!opts) {
-            opts = {};
+        profiles = profiles.first();
+        while(profiles.hasCurrent) {
+            let conn = profiles.current;
+            profiles.moveNext();
+            
+            known.push(conn.profileName);
         }
-
-        let iface = opts.iface;
-
-        if (iface) {
-            cmd += ` interface="${iface}"`;
-        }
-        try {
-            out = execSync(cmd).toString();
-            return filterProfiles(out);
-        } catch(err) {
-            // ignore for now because of incorrect errors from node
-            return false;
-        }
-
-        function filterProfiles(out) {
-            var profiles = out.split('User profiles\r\n')[1].split('\r\n');
-                profiles.splice(0, 1);
-                profiles.splice(-2, 2);
-
-            if (profiles !== '    <None>') {
-                for (let profile in profiles) {
-                    profile = profiles[profile].split(': ')[1];
-                    if (profile == ssid) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
+        return known;
     }
 
-    // Usage: forgetNetwork([[ssid,] opts])
-    // valid options: iface
-    function forgetNetwork(ssid, opts) {
-        return new Promise((resolve, reject) => {
-            var cmd = `netsh wlan delete profile name="${ssid}"`
+    /*  Old/Unimplemented
 
-            if (ssid && typeof ssid === 'object') {
-                opts = ssid;
-                ssid = undefined;
+        // Usage: isNetworkKnown([ssid, [opts]])
+        // valid options: iface
+        function isNetworkKnown(ssid, opts) {
+            if (ssid === undefined || ssid === null) {
+                return false;
             }
+            var cmd = `netsh wlan show profiles`;
 
             if (!opts) {
                 opts = {};
@@ -292,91 +300,137 @@
             let iface = opts.iface;
 
             if (iface) {
-                cmd += ` interface="${iface}"`
-            }
-
-            try {
-                execSync(cmd);
-                resolve();
-            } catch(err) {
-                reject(err);
-            }
-        });
-    }
-
-    // Usage: rememberNetwork(ssid, opts)
-    // password field required for WPAPSK and WPA2PSK security options
-    // auto-connect mode only available for password secured networks to avoid unwanted connection to unsecured networks.
-    // valid options: auto, password, security, iface
-    function rememberNetwork(ssid, opts) {
-        let tmpDir = `${__dirname}/tmp`
-        return (new Promise((resolve, reject) => {
-
-            if (!opts) {
-                opts = {};
-            }
-
-            let auto        = opts.auto || true;
-            let password    = opts.password;
-            let security    = opts.security;
-            let iface       = opts.iface;
-
-            var hexssid = Buffer.from(ssid).toString('hex');
-            let mode = auto ? 'auto' : 'manual';
-
-            var profileContent;
-            switch(security) {
-                case 'WPA2PSK':
-                case 'WPAPSK':
-                // case 'Open':
-                    let template = Handlebars.compile(fs.readFileSync(`${__dirname}/wlan-profile-templates/${security}.xml`,'utf8'));
-                    profileContent = template({ssid: ssid, hexssid: hexssid, security: security, password: password, mode: mode})
-                    break;
-                default:
-                    throw new Error(`Invalid or unsupported authorization type: "${security}"`);
-            }
-
-            if (!fs.existsSync(tmpDir)) {
-                fs.mkdirSync(tmpDir);
-            }
-            let filepath = `${tmpDir}/${ssid}.xml`;
-            if (fs.existsSync(filepath)) {
-                fs.unlinkSync(filepath);
-            }
-            fs.writeFileSync(filepath, profileContent);
-
-            var cmd = `netsh wlan add profile filename="${filepath}"`;
-
-            if (iface) {
                 cmd += ` interface="${iface}"`;
             }
-
             try {
-                execSync(cmd);
+                out = execSync(cmd).toString();
+                return filterProfiles(out);
             } catch(err) {
-                reject(err);
-            } finally {
-                fs.unlinkSync(filepath);
-                fs.rmdirSync(tmpDir);
+                // ignore for now because of incorrect errors from node
+                return false;
             }
-        }).catch((err) => {
-            // Clean up if something goes wrong.
-            // Don't want a file with the password sitting around.
-            let filepath = `${tmpDir}/${ssid}.xml`;
-            if (fs.existsSync(filepath)) {
-                fs.unlinkSync(filepath);
-            }
-            if (fs.existsSync(tmpDir)) {
-                fs.rmdirSync(tmpDir);
-            }
-            // Propogate error
-            return Promise.reject(err);
-        }));
-    }
 
-    function setPreferred(ssid, iface) {
-        var cmd = `netsh wlan set profileorder`
-    }
+            function filterProfiles(out) {
+                var profiles = out.split('User profiles\r\n')[1].split('\r\n');
+                    profiles.splice(0, 1);
+                    profiles.splice(-2, 2);
+
+                if (profiles !== '    <None>') {
+                    for (let profile in profiles) {
+                        profile = profiles[profile].split(': ')[1];
+                        if (profile == ssid) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+        }
+
+        // Usage: forgetNetwork([[ssid,] opts])
+        // valid options: iface
+        function forgetNetwork(ssid, opts) {
+            return new Promise((resolve, reject) => {
+                var cmd = `netsh wlan delete profile name="${ssid}"`
+
+                if (ssid && typeof ssid === 'object') {
+                    opts = ssid;
+                    ssid = undefined;
+                }
+
+                if (!opts) {
+                    opts = {};
+                }
+
+                let iface = opts.iface;
+
+                if (iface) {
+                    cmd += ` interface="${iface}"`
+                }
+
+                try {
+                    execSync(cmd);
+                    resolve();
+                } catch(err) {
+                    reject(err);
+                }
+            });
+        }
+
+        // Usage: rememberNetwork(ssid, opts)
+        // password field required for WPAPSK and WPA2PSK security options
+        // auto-connect mode only available for password secured networks to avoid unwanted connection to unsecured networks.
+        // valid options: auto, password, security, iface
+        function rememberNetwork(ssid, opts) {
+            let tmpDir = `${__dirname}/tmp`
+            return (new Promise((resolve, reject) => {
+
+                if (!opts) {
+                    opts = {};
+                }
+
+                let auto        = opts.auto || true;
+                let password    = opts.password;
+                let security    = opts.security;
+                let iface       = opts.iface;
+
+                var hexssid = Buffer.from(ssid).toString('hex');
+                let mode = auto ? 'auto' : 'manual';
+
+                var profileContent;
+                switch(security) {
+                    case 'WPA2PSK':
+                    case 'WPAPSK':
+                    // case 'Open':
+                        let template = Handlebars.compile(fs.readFileSync(`${__dirname}/wlan-profile-templates/${security}.xml`,'utf8'));
+                        profileContent = template({ssid: ssid, hexssid: hexssid, security: security, password: password, mode: mode})
+                        break;
+                    default:
+                        throw new Error(`Invalid or unsupported authorization type: "${security}"`);
+                }
+
+                if (!fs.existsSync(tmpDir)) {
+                    fs.mkdirSync(tmpDir);
+                }
+                let filepath = `${tmpDir}/${ssid}.xml`;
+                if (fs.existsSync(filepath)) {
+                    fs.unlinkSync(filepath);
+                }
+                fs.writeFileSync(filepath, profileContent);
+
+                var cmd = `netsh wlan add profile filename="${filepath}"`;
+
+                if (iface) {
+                    cmd += ` interface="${iface}"`;
+                }
+
+                try {
+                    execSync(cmd);
+                } catch(err) {
+                    reject(err);
+                } finally {
+                    fs.unlinkSync(filepath);
+                    fs.rmdirSync(tmpDir);
+                }
+            }).catch((err) => {
+                // Clean up if something goes wrong.
+                // Don't want a file with the password sitting around.
+                let filepath = `${tmpDir}/${ssid}.xml`;
+                if (fs.existsSync(filepath)) {
+                    fs.unlinkSync(filepath);
+                }
+                if (fs.existsSync(tmpDir)) {
+                    fs.rmdirSync(tmpDir);
+                }
+                // Propogate error
+                return Promise.reject(err);
+            }));
+        }
+
+        function setPreferred(ssid, iface) {
+            var cmd = `netsh wlan set profileorder`
+        }
+    */
 
     module.exports = wifi;
 })();

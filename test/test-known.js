@@ -14,8 +14,4 @@ let opts = {
     iface: iface
 }
 
-if (wifi.isNetworkKnown(ssid, opts)) {
-    console.log(`network "${ssid}" is known`);
-} else {
-    console.log(`network "${ssid}" is unknown`);
-}
+console.log(wifi.knownNetworks());
