@@ -15,11 +15,11 @@
   "author": "obermillerk",
   "license": "Apache-2.0",
   "dependencies": {
-    "deasync": "file:deasync-0.1.10-custom.tgz",
+    "deasync": "https://github.com/obermillerk/win-wifi/blob/0.1.0/deasync-0.1.10-custom.tgz",
     "dotenv": "4.0.0",
-    "windows.devices.enumeration": "file:windows.devices.enumeration-0.1.0.tgz",
-    "windows.devices.wifi": "file:windows.devices.wifi-0.1.0.tgz",
-    "windows.networking.connectivity": "file:windows.networking.connectivity-0.1.0.tgz",
-    "windows.security.credentials": "file:windows.security.credentials-0.1.0.tgz"
+    "windows.devices.enumeration": "https://github.com/obermillerk/win-wifi/blob/0.1.0/windows.devices.enumeration-0.1.0.tgz",
+    "windows.devices.wifi": "https://github.com/obermillerk/win-wifi/blob/0.1.0/windows.devices.wifi-0.1.0.tgz",
+    "windows.networking.connectivity": "https://github.com/obermillerk/win-wifi/blob/0.1.0/windows.networking.connectivity-0.1.0.tgz",
+    "windows.security.credentials": "https://github.com/obermillerk/win-wifi/blob/0.1.0/windows.security.credentials-0.1.0.tgz"
   }
 }
