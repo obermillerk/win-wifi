@@ -266,22 +266,22 @@
     }
 
     // Incomplete
-    knownNetworks = function() {
-        let filter = new Connectivity.ConnectionProfileFilter();
-        filter.isWlanConnectionProfile = true;
-        let profiles = deasync(Connectivity.NetworkInformation.findConnectionProfilesAsync)(filter);
+    // knownNetworks = function() {
+    //     let filter = new Connectivity.ConnectionProfileFilter();
+    //     filter.isWlanConnectionProfile = true;
+    //     let profiles = deasync(Connectivity.NetworkInformation.findConnectionProfilesAsync)(filter);
         
-        let known = [];
+    //     let known = [];
 
-        profiles = profiles.first();
-        while(profiles.hasCurrent) {
-            let conn = profiles.current;
-            profiles.moveNext();
+    //     profiles = profiles.first();
+    //     while(profiles.hasCurrent) {
+    //         let conn = profiles.current;
+    //         profiles.moveNext();
             
-            known.push(conn.profileName);
-        }
-        return known;
-    }
+    //         known.push(conn.profileName);
+    //     }
+    //     return known;
+    // }
 
     /*  Old/Unimplemented
 

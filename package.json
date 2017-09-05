@@ -1,11 +1,10 @@
 {
-  "name": "wifi",
-  "version": "0.0.1",
+  "name": "win-wifi",
+  "version": "0.1.0",
   "description": "",
   "main": "wifi.js",
   "scripts": {
-    "test": "test",
-    "postinstall": "npm install -E deasync@0.1.10 && npm explore deasync -- node-gyp rebuild"
+    "test": "test"
   },
   "keywords": [
     "wifi",
@@ -16,12 +15,11 @@
   "author": "obermillerk",
   "license": "Apache-2.0",
   "dependencies": {
-    "deasync": "0.1.10",
+    "deasync": "file:deasync-0.1.10-custom.tgz",
     "dotenv": "4.0.0",
-    "handlebars": "4.0.10",
-    "windows.devices.enumeration": "github:obermillerk/windows.devices.enumeration",
-    "windows.devices.wifi": "github:obermillerk/windows.devices.wifi",
-    "windows.networking.connectivity": "github:obermillerk/windows.networking.connectivity",
-    "windows.security.credentials": "github:obermillerk/windows.security.credentials"
+    "windows.devices.enumeration": "file:windows.devices.enumeration-0.1.0.tgz",
+    "windows.devices.wifi": "file:windows.devices.wifi-0.1.0.tgz",
+    "windows.networking.connectivity": "file:windows.networking.connectivity-0.1.0.tgz",
+    "windows.security.credentials": "file:windows.security.credentials-0.1.0.tgz"
   }
 }
