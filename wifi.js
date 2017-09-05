@@ -136,7 +136,7 @@
             }
             if (network) {
                 let reconnectKind = auto ? WiFiReconnectionKind.automatic : WiFiReconnectionKind.manual;
-                if (password || username) {
+                if (password) {
                     let passcred = new PasswordCredential();
                     if (password && typeof password === 'string' && password.length > 0) {
                         passcred.password = password;
