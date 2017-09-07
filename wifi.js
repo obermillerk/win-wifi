@@ -168,7 +168,8 @@
         adapter.disconnect();
     }
 
-    // Usage: scan([ssid])
+
+    // Usage: availableNetworks([ssid])
     // ssid is anticipated as a regular expression.  Will not match exactly unless the regex specifies such.
     wifi.prototype.availableNetworks = availableNetworks = function(ssid) {
         let connections = currentConnections();
@@ -197,6 +198,8 @@
         return results;
     }
 
+
+    // Usage: scan()
     wifi.prototype.scan = scan = function() {
         adapter.scanAsync(() => {});
     }

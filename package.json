@@ -1,25 +1,26 @@
 {
   "name": "win-wifi",
-  "version": "0.1.0",
-  "description": "",
-  "main": "wifi.js",
-  "scripts": {
-    "test": "test"
+  "version": "0.1.1",
+  "description": "Scan, connect, and disconnect wifi network in Windows 10.",
+  "homepage": "https://github.com/obermillerk/win-wifi",
+  "bugs": "https://github.com/obermillerk/win-wifi/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/obermillerk/win-wifi"
   },
+  "main": "wifi.js",
   "keywords": [
     "wifi",
     "windows",
-    "manager",
-    "netsh"
+    "wlan",
+    "10"
   ],
+  "os": "win32",
   "author": "obermillerk",
   "license": "Apache-2.0",
-  "dependencies": {
-    "deasync": "https://github.com/obermillerk/win-wifi/blob/0.1.0/deasync-0.1.10-custom.tgz?raw=true",
-    "dotenv": "4.0.0",
-    "windows.devices.enumeration": "https://github.com/obermillerk/win-wifi/blob/0.1.0/windows.devices.enumeration-0.1.0.tgz?raw=true",
-    "windows.devices.wifi": "https://github.com/obermillerk/win-wifi/blob/0.1.0/windows.devices.wifi-0.1.0.tgz?raw=true",
-    "windows.networking.connectivity": "https://github.com/obermillerk/win-wifi/blob/0.1.0/windows.networking.connectivity-0.1.0.tgz?raw=true",
-    "windows.security.credentials": "https://github.com/obermillerk/win-wifi/blob/0.1.0/windows.security.credentials-0.1.0.tgz?raw=true"
-  }
+  "devDependencies": {
+    "dotenv": "4.0.0"
+  },
+  "bundledDependencies":
+    ["deasync", "windows.devices.enumeration", "windows.devices.wifi", "windows.networking.connectivity", "windows.security.credentials"]
 }
