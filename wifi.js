@@ -204,6 +204,7 @@
         adapter.scanAsync(() => {});
     }
 
+    console.log(Connectivity.NetworkAuthenticationType);
     function _rewriteSecurity(security) {
         if (!security instanceof Connectivity.NetworkSecuritySettings) {
             throw new Error("Invalid NetworkSecuritySettings object provided.");
@@ -216,11 +217,11 @@
         
         switch(authType) {
             // Secure types
-            case aTypes.Wpa:
+            case aTypes.wpa:
                 return 'WPA-Enterprise';
-            case aTypes.WpaPsk:
+            case aTypes.wpaPsk:
                 return 'WPA-Personal';
-            case aTypes.WpaNone:
+            case aTypes.wpaNone:
                 return 'WPA-None';
             case aTypes.rsna:
                 return 'WPA2-Enterprise';
