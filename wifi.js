@@ -204,7 +204,18 @@
         adapter.scanAsync(() => {});
     }
 
-    console.log(Connectivity.NetworkAuthenticationType);
+    /* Auth Types
+        "none": 0,
+        "unknown": 1,
+        "open80211": 2,
+        "sharedKey80211": 3,
+        "wpa": 4,
+        "wpaPsk": 5,
+        "wpaNone": 6,
+        "rsna": 7,
+        "rsnaPsk": 8,
+        "ihv": 9
+    */
     function _rewriteSecurity(security) {
         if (!security instanceof Connectivity.NetworkSecuritySettings) {
             throw new Error("Invalid NetworkSecuritySettings object provided.");
